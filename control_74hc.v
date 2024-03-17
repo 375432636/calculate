@@ -2,6 +2,8 @@ module control_74HC595D(
     input wire s_clk,
     input wire s_reset,
     input wire [15:0] data_in,
+    input wire write_en,
+    output reg [1:0]insert_stat,
     output reg data_out,
     output reg latch_out,
     output reg data_clock
@@ -48,22 +50,35 @@ always @(posedge can_write or posedge s_reset) begin
         shift_register <= data_in;
         counter <= 8'b0;
         latch_out = 1'b0;
+        insert_stat = 'b0;
 
     end else begin
-        if (counter < 8'd16) begin
-            latch_out <= 1'b0;
-            // 移位操作
-            data_out <= shift_register[0];
-            shift_register <= shift_register>>1;
-            counter <= counter + 1;
-        end 
-        else begin
-            // 数据输出
-            shift_register <= data_in;
-            latch_out <= 1'b1;
-            counter <= 8'b0;
-        end
-
+        case (insert_stat)
+            'b0:begin // insert mode
+                if (counter < 8'd16) begin
+                    latch_out <= 1'b0;
+                    // 移位操作
+                    data_out <= shift_register[0];
+                    shift_register <= shift_register>>1;
+                    counter <= counter + 1;
+                end 
+                else begin
+                    // 数据输出
+                    latch_out <= 1'b1;
+                    counter <= 8'b0;
+                    insert_stat<='b1;
+                end
+            end 
+            'b1:begin
+                if (write_en) begin
+                    shift_register <= data_in;
+                    insert_stat <= 'd2;
+                end
+            end
+            'd2:begin
+                insert_stat <= 'b0;
+            end
+        endcase
     end
 end
 
